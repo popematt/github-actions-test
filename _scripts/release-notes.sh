@@ -50,7 +50,7 @@ ion-schema-rust"
 commit_msg_body=""
 
 for repo_name in $REPO_NAMES; do
-  printf "Checking for releases in %s... " "$repo_name"
+  printf 'Checking for releases in %s\n' "$repo_name"
   release="$(gh release view -R "amzn/$repo_name" --json body,createdAt,tagName)"
   [ -z "$release" ] && continue
 
