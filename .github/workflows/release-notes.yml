@@ -16,4 +16,6 @@ jobs:
       - name: Create Release Post PR
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: ./_scripts/release-notes.sh
+        run: |
+          gh auth status
+          ./_scripts/release-notes.sh

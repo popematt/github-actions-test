@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+gh auth status
+
 ION_REPOS="$(gh api teams/2323876/repos --jq '.[] | select(.visibility == "public") | .name')"
 
 COMMIT_MSG_BODY=""
