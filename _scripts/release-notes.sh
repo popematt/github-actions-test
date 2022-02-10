@@ -102,10 +102,11 @@ $title_case_repo_name $version is now available.
 done
 
 readonly NUM_NEW_POSTS=$(git status -s -uno | grep -ce .)
+echo "Generated $NUM_NEW_POSTS news items."
 if [[ $NUM_NEW_POSTS -ne 0 ]]; then
   readonly GENERATED_NEWS_COMMIT_MESSAGE="$(printf 'Adds news posts for %s releases\n%s\n' "$NUM_NEW_POSTS" "$commit_msg_body")"
   if [[ $GITHUB_ACTIONS ]]; then
-    echo "::set-output name=changes::$NUM_NEW_POSTS)"
+    echo "::set-output name=changes::$NUM_NEW_POSTS"
     echo "::set-output name=generated_commit_message::$GENERATED_NEWS_COMMIT_MESSAGE"
   else
     echo $GENERATED_NEWS_COMMIT_MESSAGE
