@@ -2,7 +2,36 @@
 
 gh auth status
 
-ION_REPOS="$(gh api teams/2323876/repos --jq '.[] | select(.visibility == "public") | .name')"
+# ION_REPOS="$(gh api teams/2323876/repos --jq '.[] | select(.visibility == "public") | .name')"
+ION_REPOs="\
+ion-c
+ion-cli
+ion-docs
+ion-dotnet
+ion-eclipse-plugin
+ion-element-kotlin
+ion-go
+ion-hash
+ion-hash-dotnet
+ion-hash-go
+ion-hash-java
+ion-hash-js
+ion-hash-python
+ion-hash-test
+ion-hash-test-driver
+ion-hive-serde
+ion-intellij-plugin
+ion-java
+ion-java-benchmark-cli
+ion-java-path-extraction
+ion-js
+ion-kotlin-builder
+ion-python
+ion-rust
+ion-schema
+ion-schema-kotlin
+ion-schema-rust"
+
 
 COMMIT_MSG_BODY=""
 
@@ -39,8 +68,10 @@ done
 
 NUM_NEW_POSTS=$(git status -s -uno | grep -ce .)
 if [[ $NUM_NEW_POSTS ]]; then
-  git config user.name github-actions
-  git config user.email github-actions@github.com
+  if [[ $GITHUB_ACTIONS ]]; then
+    git config user.name github-actions
+    git config user.email github-actions@github.com
+  fi
   git commit -m "$(printf 'Adds news posts for %s releases\n%s\n' "$NUM_NEW_POSTS" "$COMMIT_MSG_BODY")"
   git push
 fi
