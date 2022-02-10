@@ -10,7 +10,7 @@
 #
 # When running locally, if any news items are generated, an auto-generated
 # commit message will be echoed to stdout. When running in GitHub Actions, the
-# number of changes and the generated commit message will be exported as outputs 
+# number of changes and the generated commit message will be exported as outputs
 # of the workflow step--'changes' and 'generated_commit_message' respectively.
 #
 # This script does not generate news items for releases marked as a pre-release
@@ -77,7 +77,7 @@ for repo_name in $REPO_NAMES; do
   if [[ -f $news_item_file_path ]]; then
     echo 'News already exists for this release.'
   else
-    title_case_repo_name="$(sed -e "s/\-/ /" <<< "$repo_name" | awk '{for (i=1;i <= NF;i++) {sub(".",substr(toupper($i),1,1),$i)} print}')"
+    title_case_repo_name="$(sed -e "s/\-/ /g" <<< "$repo_name" | awk '{for (i=1;i <= NF;i++) {sub(".",substr(toupper($i),1,1),$i)} print}')"
 
     # Collapses any repeated newlines down to a single newline
     sed -e '/./b' -e :n -e 'N;s/\n$//;tn' <<< "\
@@ -107,8 +107,9 @@ if [[ $NUM_NEW_POSTS -ne 0 ]]; then
   readonly GENERATED_NEWS_COMMIT_MESSAGE="$(printf 'Adds news posts for %s releases\n%s\n' "$NUM_NEW_POSTS" "$commit_msg_body")"
   if [[ $GITHUB_ACTIONS ]]; then
     echo "::set-output name=changes::$NUM_NEW_POSTS"
-    echo "::set-output name=generated_commit_message::$GENERATED_NEWS_COMMIT_MESSAGE"
+    # Need to escape newlines to prevent output from being truncated
+    echo "::set-output name=generated_commit_message::${GENERATED_NEWS_COMMIT_MESSAGE//$'\n'/'%0A'}"
   else
-    echo $GENERATED_NEWS_COMMIT_MESSAGE
+    echo "$GENERATED_NEWS_COMMIT_MESSAGE"
   fi
 fi
