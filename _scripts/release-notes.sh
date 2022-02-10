@@ -1,7 +1,24 @@
 #!/usr/bin/env bash
 
-# ION_REPOS="$(gh api teams/2323876/repos --jq '.[] | select(.visibility == "public") | .name')"
-ION_REPOS="\
+# Loops through a whitespace delimited list of Ion repositories, and generates
+# a news item for the latest release of each repository if a news item doesn't
+# already exist for that release.
+#
+# Any news items that are generated will automatically be staged for commit.
+# The user or workflow that is running the script is responsible for committing
+# and pushing any changes.
+#
+# If any news items are generated, an auto-generated commit message will be
+# exported as GENERATED_NEWS_COMMIT_MESSAGE.
+#
+# This script does not generate news items for releases marked as a pre-release
+# version.
+
+# TODO: See if github actions can use the github cli to automatically list all Ion repositories.
+# readonly repo_nameS="$(gh api teams/2323876/repos --jq '.[] | select(.visibility == "public") | .name')"
+
+# This should be kept up-to-date with all PUBLIC ion repositories.
+readonly REPO_NAMES="\
 ion-c
 ion-cli
 ion-docs
@@ -30,51 +47,54 @@ ion-schema
 ion-schema-kotlin
 ion-schema-rust"
 
+commit_msg_body=""
 
-COMMIT_MSG_BODY=""
+for repo_name in $REPO_NAMES; do
+  printf "Checking for releases in %s... " "$repo_name"
+  release="$(gh release view -R "amzn/$repo_name" --json body,createdAt,tagName)"
+  [ -z "$release" ] && continue
 
-for REPO_NAME in $ION_REPOS; do
-  RELEASE="$(gh release view -R "amzn/$REPO_NAME" --json body,createdAt,tagName)"
+  release_date="$(jq -r '.createdAt' <<< "$release" | cut -d'T' -f1)"
+  tag="$(jq -r '.tagName' <<< "$release")"
+  version="$(cut -d'v' -f2 <<< "$tag")"
+  news_item_file_path="_posts/$release_date-$repo_name-$(sed 's/\./_/g' <<< "$version")-released.md"
 
-  [ -z "$RELEASE" ] && continue
+  # NOTE: If we decide that we want to include the release notes in the news item, we need to remove
+  # the '\r' characters from the release body. i.e.:
+  # release_notes = $(jq -r '.body' <<< "$release" | sed -e 's/\r//g')
 
-  RELEASE_DATE="$(jq -r '.createdAt' <<< "$RELEASE" | cut -d'T' -f1)"
-  TAG="$(jq -r '.tagName' <<< $RELEASE)"
-  VERSION="$(cut -d'v' -f2 <<< $TAG)"
-  POST_FILE_NAME="_posts/$RELEASE_DATE-$REPO_NAME-$(sed 's/\./_/g' <<< $VERSION)-released.md"
+  printf 'found %s... ' "$tag"
 
-  echo "Found release $REPO_NAME $TAG"
+  # If file already exists, then we already have a new item for this release.
+  if [[ -f $news_item_file_path ]]; then
+    echo 'news already exists for this release.'
+  else
+    title_case_repo_name="$(sed -e "s/\-/ /" <<< "$repo_name" | awk '{for (i=1;i <= NF;i++) {sub(".",substr(toupper($i),1,1),$i)} print}')"
 
-  # If file already exists, continue
-  if [[ ! -f $POST_FILE_NAME ]]; then
-    TITLE_CASE_REPO_NAME="$(sed -e "s/\-/ /" <<< $REPO_NAME | awk '{for (i=1;i <= NF;i++) {sub(".",substr(toupper($i),1,1),$i)} print}')"
+    # Collapses any repeated newlines down to a single newline
     sed -e '/./b' -e :n -e 'N;s/\n$//;tn' <<< "\
 ---
 layout: news_item
-title: \"$TITLE_CASE_REPO_NAME $VERSION Released\"
-date: $RELEASE_DATE
-categories: news $REPO
+title: \"$title_case_repo_name $version Released\"
+date: $release_date
+categories: news $repo_name
 ---
 
-$(jq -r '.body' <<< "$RELEASE" | sed -e 's/\r//g')
+$title_case_repo_name $version is now available.
 
-| [Release Notes $TAG](https://github.com/amzn/$REPO/releases/tag/$TAG) | [$TITLE_CASE_REPO_NAME](https://github.com/amzn/$REPO_NAME) |
-" >> $POST_FILE_NAME
+| [Release Notes $tag](https://github.com/amzn/$repo_name/releases/tag/$tag) | [$title_case_repo_name](https://github.com/amzn/$repo_name) |
+" >> "$news_item_file_path"
 
-    echo "Generated $POST_FILE_NAME"
-
-    git add $POST_FILE_NAME
-    COMMIT_MSG_BODY=$(printf '%s\n%s' "$COMMIT_MSG_BODY" "* $REPO_NAME $TAG")
-  else
-    echo "News item already exists: $POST_FILE_NAME"
+    git add "$news_item_file_path"
+    commit_msg_body=$(printf '%s\n%s' "$commit_msg_body" "* $repo_name $tag")
+    echo "generated $news_item_file_path"
   fi
 done
 
-NUM_NEW_POSTS=$(git status -s -uno | grep -ce .)
-if [[ $NUM_NEW_POSTS ]]; then
-  if [[ $GITHUB_ACTIONS ]]; then
-    git config user.name github-actions
-    git config user.email github-actions@github.com
-  fi
-  git commit -m "$(printf 'Adds news posts for %s releases\n%s\n' "$NUM_NEW_POSTS" "$COMMIT_MSG_BODY")"
+readonly NUM_NEW_POSTS=$(git status -s -uno | grep -ce .)
+if [[ $NUM_NEW_POSTS -ne 0 ]]; then
+  GENERATED_NEWS_COMMIT_MESSAGE="$(printf 'Adds news posts for %s releases\n%s\n' "$NUM_NEW_POSTS" "$commit_msg_body")"
+else
+  GENERATED_NEWS_COMMIT_MESSAGE= # Nothing
 fi
+export GENERATED_NEWS_COMMIT_MESSAGE

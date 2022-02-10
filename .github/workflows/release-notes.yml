@@ -1,23 +1,37 @@
-# This is a basic workflow that is manually triggered
+name: Release News Workflow
 
-name: Release notes workflow
-
-# Controls when the action will run. Workflow runs when manually triggered using the UI
-# or API.
 on:
+  # Allow manually starting the workflow incase we need human intervention.
   workflow_dispatch:
+
+  # Runs at 08:17 UTC / 00:17 PST / 01:17 PDT
+  # 17 is an arbitrarily chosen to avoid running the workflow during the peak at the beginning of the hour
+  schedule:
+    - cron: '17 8 * * *'
+
 permissions: write-all
+
 jobs:
-  create_news:
+  generate_news_items:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Create Release Post PR
+
+      - name: Generate News Posts
+        id: generate_news
+        shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh auth status
           ./_scripts/release-notes.sh
-          if [[! -e git log ^origin/gh-pages gh-pages --oneline ]]; then
-            git push
-          fi
+          echo "::set-output name=changes::$(git status -s -uno | grep -ce .)"
+          echo "::set-output name=generated_commit_message::$GENERATED_NEWS_COMMIT_MESSAGE"
+
+      - name: Commit and Push Changes
+        if: ${{ steps.generate_news.outputs.changes > 0 }}
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git commit -m "${{ steps.generate_news.outputs.generated_commit_message }}"
+          git push
+
