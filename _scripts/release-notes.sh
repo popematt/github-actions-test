@@ -77,5 +77,4 @@ if [[ $NUM_NEW_POSTS ]]; then
     git config user.email github-actions@github.com
   fi
   git commit -m "$(printf 'Adds news posts for %s releases\n%s\n' "$NUM_NEW_POSTS" "$COMMIT_MSG_BODY")"
-  git push
 fi
