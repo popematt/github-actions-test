@@ -24,8 +24,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           ./_scripts/release-notes.sh
-          echo "::set-output name=changes::$(git status -s -uno | grep -ce .)"
-          echo "::set-output name=generated_commit_message::$GENERATED_NEWS_COMMIT_MESSAGE"
 
       - name: Commit and Push Changes
         if: ${{ steps.generate_news.outputs.changes > 0 }}

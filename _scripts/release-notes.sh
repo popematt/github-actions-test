@@ -8,8 +8,10 @@
 # The user or workflow that is running the script is responsible for committing
 # and pushing any changes.
 #
-# If any news items are generated, an auto-generated commit message will be
-# exported as GENERATED_NEWS_COMMIT_MESSAGE.
+# When running locally, if any news items are generated, an auto-generated
+# commit message will be echoed to stdout. When running in GitHub Actions, the
+# number of changes and the generated commit message will be exported as outputs 
+# of the workflow step--'changes' and 'generated_commit_message' respectively.
 #
 # This script does not generate news items for releases marked as a pre-release
 # version.
@@ -17,7 +19,7 @@
 # TODO: See if github actions can use the github cli to automatically list all Ion repositories.
 # readonly repo_nameS="$(gh api teams/2323876/repos --jq '.[] | select(.visibility == "public") | .name')"
 
-# This should be kept up-to-date with all PUBLIC ion repositories.
+# This should be kept up-to-date with all PUBLIC Ion repositories.
 readonly REPO_NAMES="\
 ion-c
 ion-cli
@@ -50,9 +52,15 @@ ion-schema-rust"
 commit_msg_body=""
 
 for repo_name in $REPO_NAMES; do
-  printf 'Checking for releases in %s\n' "$repo_name"
+  # Groups the logs in GitHub Actions to make them nicer to read.
+  [[ $GITHUB_ACTIONS ]] && echo "::group::$repo_name"
+
+  echo "Checking for releases in $repo_name"
   release="$(gh release view -R "amzn/$repo_name" --json body,createdAt,tagName)"
-  [ -z "$release" ] && continue
+  if [[ -z "$release" ]]; then
+    [[ $GITHUB_ACTIONS ]] && echo "::endgroup::"
+    continue
+  fi
 
   release_date="$(jq -r '.createdAt' <<< "$release" | cut -d'T' -f1)"
   tag="$(jq -r '.tagName' <<< "$release")"
@@ -63,11 +71,11 @@ for repo_name in $REPO_NAMES; do
   # the '\r' characters from the release body. i.e.:
   # release_notes = $(jq -r '.body' <<< "$release" | sed -e 's/\r//g')
 
-  printf 'found %s... ' "$tag"
+  echo "Found release $tag"
 
   # If file already exists, then we already have a new item for this release.
   if [[ -f $news_item_file_path ]]; then
-    echo 'news already exists for this release.'
+    echo 'News already exists for this release.'
   else
     title_case_repo_name="$(sed -e "s/\-/ /" <<< "$repo_name" | awk '{for (i=1;i <= NF;i++) {sub(".",substr(toupper($i),1,1),$i)} print}')"
 
@@ -86,15 +94,20 @@ $title_case_repo_name $version is now available.
 " >> "$news_item_file_path"
 
     git add "$news_item_file_path"
+    echo "Generated '$news_item_file_path'"
     commit_msg_body=$(printf '%s\n%s' "$commit_msg_body" "* $repo_name $tag")
-    echo "generated $news_item_file_path"
   fi
+
+  [[ $GITHUB_ACTIONS ]] && echo "::endgroup::"
 done
 
 readonly NUM_NEW_POSTS=$(git status -s -uno | grep -ce .)
 if [[ $NUM_NEW_POSTS -ne 0 ]]; then
-  GENERATED_NEWS_COMMIT_MESSAGE="$(printf 'Adds news posts for %s releases\n%s\n' "$NUM_NEW_POSTS" "$commit_msg_body")"
-else
-  GENERATED_NEWS_COMMIT_MESSAGE= # Nothing
+  readonly GENERATED_NEWS_COMMIT_MESSAGE="$(printf 'Adds news posts for %s releases\n%s\n' "$NUM_NEW_POSTS" "$commit_msg_body")"
+  if [[ $GITHUB_ACTIONS ]]; then
+    echo "::set-output name=changes::$NUM_NEW_POSTS)"
+    echo "::set-output name=generated_commit_message::$GENERATED_NEWS_COMMIT_MESSAGE"
+  else
+    echo $GENERATED_NEWS_COMMIT_MESSAGE
+  fi
 fi
-export GENERATED_NEWS_COMMIT_MESSAGE
