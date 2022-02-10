@@ -6,8 +6,7 @@ name: Release notes workflow
 # or API.
 on:
   workflow_dispatch:
-
-
+permissions: read-all|write-all
 jobs:
   create_news:
     runs-on: ubuntu-latest
