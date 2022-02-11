@@ -23,6 +23,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          echo "$(date)" >> _posts/date.txt
           ./_scripts/release-notes.sh
 
       - name: Commit and Push Changes
