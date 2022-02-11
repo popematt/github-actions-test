@@ -37,6 +37,5 @@ jobs:
           git commit -m "${{ steps.generate_news.outputs.generated_commit_message }}"
           git push --set-upstream origin github-actions-patch-1
           gh pr create --fill --label release-news --base main
-          gh pr review --approve
-          gh pr merge -r -d
+          gh workflow run auto-approve-release-news.yml
 

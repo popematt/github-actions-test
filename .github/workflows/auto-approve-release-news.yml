@@ -1,0 +1,21 @@
+name: Auto-approve Release News Workflow
+
+on:
+  # Allow manually starting the workflow incase we need human intervention.
+  workflow_dispatch:
+
+permissions: write-all
+
+jobs:
+  generate_news_items:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Approve PR
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name github-actions-approver
+          git config user.email github-actions@github.com
+          gh pr review "github-actions-patch-1" --approve
+          gh pr merge "github-actions-patch-1" -r -d
