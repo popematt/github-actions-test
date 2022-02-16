@@ -4,11 +4,6 @@ on:
   # Allow manually starting the workflow incase we need human intervention.
   workflow_dispatch:
 
-  # Runs at 08:17 UTC / 00:17 PST / 01:17 PDT
-  # 17 is an arbitrarily chosen to avoid running the workflow during the peak at the beginning of the hour
-  schedule:
-    - cron: '17 8 * * *'
-
 permissions: write-all
 
 jobs:
